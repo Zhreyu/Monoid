@@ -1,0 +1,45 @@
+[project]
+name = "monoid"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "networkx>=3.6.1",
+    "numpy>=2.4.0",
+    "openai>=2.14.0",
+    "pydantic>=2.12.5",
+    "python-frontmatter>=1.1.0",
+    "rich>=14.2.0",
+    "sentence-transformers>=5.2.0",
+    "typer>=0.21.0",
+]
+
+[project.scripts]
+monoid = "monoid.cli.main:app"
+
+[tool.uv]
+dev-dependencies = [
+    "networkx>=3.4.2",
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "mypy>=1.14.1",
+    "ruff>=0.8.4",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.14.10",
+]

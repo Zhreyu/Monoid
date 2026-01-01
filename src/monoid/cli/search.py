@@ -1,7 +1,7 @@
 import typer
 from rich.console import Console
 from rich.table import Table
-from typing import Optional, List
+from typing import Optional
 from monoid.metadata.indexer import indexer
 
 app = typer.Typer()
@@ -60,6 +60,8 @@ def search(
 
     else:
         mode = "Full-Text Search"
+        # query is guaranteed non-None here due to earlier checks
+        assert query is not None
         fts_results = indexer.search(query)
         results = []
         for row in fts_results[:top]:

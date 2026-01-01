@@ -1,5 +1,4 @@
 import sqlite3
-from pathlib import Path
 from monoid.config import config
 
 class Database:

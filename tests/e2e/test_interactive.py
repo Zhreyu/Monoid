@@ -1,9 +1,8 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from monoid.cli.notes import new
 from monoid.core.storage import storage
 from monoid.config import config
-import sys
 
 @pytest.fixture
 def isolated_storage(tmp_path):

@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from monoid.core.domain import Note, NoteTag
 from monoid.core.storage import storage
 from monoid.metadata.embeddings import embeddings_manager
@@ -19,7 +19,6 @@ def mock_openai():
 def mock_embeddings():
     with patch('monoid.metadata.embeddings.embeddings_manager.generate') as mock_gen:
         # Return dummy vector
-        import numpy as np
         mock_gen.return_value = [0.1, 0.2, 0.3]
         
         # Ensure model is "loaded"

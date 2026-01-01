@@ -80,7 +80,6 @@ class Indexer:
         # Let's clean the string of punctuation and join with OR for broader recall?
         # Or Just use the quoted string for specific phrase?
         # Let's go with: clean punctuation, split into words, join with OR.
-        import re
         words = re.findall(r'\w+', query)
         if not words:
             return []
@@ -279,7 +278,7 @@ class Indexer:
                 'tag_score': float(tag_score)
             })
 
-        combined_results.sort(key=lambda x: x['score'], reverse=True)
+        combined_results.sort(key=lambda x: x['score'], reverse=True)  # type: ignore[arg-type,return-value]
         return combined_results[:top_k]
 
     @staticmethod

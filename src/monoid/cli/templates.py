@@ -32,7 +32,7 @@ def list_templates() -> None:
         table.add_row(template.name, template.description)
 
     console.print(table)
-    console.print(f"\n[dim]Use 'monoid template show <name>' to see template structure[/dim]")
+    console.print("\n[dim]Use 'monoid template show <name>' to see template structure[/dim]")
 
 
 @app.command(name="show")
@@ -59,7 +59,7 @@ def show_template(name: str) -> None:
     for field, description in template.structure.items():
         console.print(f"  [cyan]{field}[/cyan]: {description}")
 
-    console.print(f"\n[dim]System Prompt:[/dim]")
+    console.print("\n[dim]System Prompt:[/dim]")
     console.print(Panel(
         template.system_prompt,
         border_style="dim"

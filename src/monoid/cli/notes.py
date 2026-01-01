@@ -3,19 +3,17 @@ from typing import Optional, List
 import sys
 import subprocess
 import os
+import tempfile
 from rich.console import Console
 from rich.table import Table
 
 from monoid.core.storage import storage
 from monoid.metadata.indexer import indexer
-from monoid.core.domain import NoteType
+from monoid.core.domain import NoteType, NoteTag
 from monoid.config import config
 
 app = typer.Typer()
 console = Console()
-
-import tempfile
-import subprocess
 
 @app.command()
 def new(
@@ -53,12 +51,12 @@ def new(
         console.print(f"[red]Invalid note type. Choices: {', '.join([t.value for t in NoteType])}[/red]")
         return
 
-    note = storage.create_note(content=content, title=title, tags=tags, type=note_type)
+    note = storage.create_note(content=content, title=title, tags=list(tags) if tags else None, type=note_type)
     console.print(f"[green]Created note:[/green] {note.metadata.id} ({note.path})")
     
     indexer.sync_all()
 
-def format_tags_with_confidence(tags, show_all: bool = False, threshold: float = 0.7) -> str:
+def format_tags_with_confidence(tags: List[NoteTag], show_all: bool = False, threshold: float = 0.7) -> str:
     """Format tags with confidence indicators."""
     parts = []
     for tag in tags:

@@ -1,8 +1,6 @@
 import pytest
-import os
-from pathlib import Path
 from monoid.core.storage import storage
-from monoid.metadata.db import db, Database
+from monoid.metadata.db import db
 from monoid.metadata.indexer import indexer
 from monoid.config import config
 from monoid.core.domain import NoteType

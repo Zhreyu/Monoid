@@ -1,4 +1,5 @@
 import typer
+from typing import Any
 from rich.console import Console
 from monoid.cli import notes, search, ai, graph, templates
 from monoid.cli import help as help_module
@@ -19,7 +20,7 @@ def get_no_tips() -> bool:
     return _no_tips
 
 
-def show_tip(command: str, **context) -> None:
+def show_tip(command: str, **context: Any) -> None:
     """Show contextual tip after command if enabled."""
     if _no_tips:
         return

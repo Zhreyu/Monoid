@@ -1,12 +1,9 @@
-import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import datetime
-import time
 
 from monoid.config import config
-from monoid.config import config
-from monoid.core.domain import Note, NoteMetadata, NoteType
+from monoid.core.domain import Note, NoteMetadata, NoteType, NoteTag
 
 class Storage:
     def __init__(self) -> None:
@@ -16,12 +13,12 @@ class Storage:
     def _generate_id(self) -> str:
         return datetime.now().strftime("%Y%m%d%H%M%S")
 
-    def create_note(self, content: str, title: Optional[str] = None, type: NoteType = NoteType.NOTE, tags: Optional[List[str]] = None) -> Note:
+    def create_note(self, content: str, title: Optional[str] = None, type: NoteType = NoteType.NOTE, tags: Optional[List[Union[str, NoteTag]]] = None) -> Note:
         note_id = self._generate_id()
         metadata = NoteMetadata(
             id=note_id,
             type=type,
-            tags=tags or [],
+            tags=tags or [],  # type: ignore[arg-type]  # validator handles str->NoteTag conversion
             title=title,
             created=datetime.now()
         )

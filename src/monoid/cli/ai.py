@@ -51,7 +51,7 @@ def ask(question: str) -> None:
         with console.status("Thinking..."):
             answer = provider.ask(context, question)
             
-        console.print(f"[bold]Answer:[/bold]")
+        console.print("[bold]Answer:[/bold]")
         console.print(answer)
         
     except Exception as e:
@@ -69,7 +69,8 @@ def synth(topic: str) -> None:
     notes = []
     for row in results[:5]: # Top 5 relevant
         n = storage.get_note(row['id'])
-        if n: notes.append(n)
+        if n:
+            notes.append(n)
         
     try:
         from monoid.intelligence.openai import OpenAIProvider
@@ -115,7 +116,6 @@ def tag(note_id: str) -> None:
 
     try:
         from monoid.intelligence.openai import OpenAIProvider
-        from monoid.core.domain import NoteTag
         provider = OpenAIProvider()
         
         with console.status("Analyzing tags..."):
@@ -156,7 +156,6 @@ def autotag(
     
     try:
         from monoid.intelligence.openai import OpenAIProvider
-        from monoid.core.domain import NoteTag
         provider = OpenAIProvider()
         
         with console.status(f"Processing {len(notes)} notes..."):

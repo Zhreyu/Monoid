@@ -3,8 +3,9 @@ from typer.testing import CliRunner
 from monoid.cli.main import app
 from monoid.core.storage import storage
 from monoid.metadata.indexer import indexer
+from monoid.metadata.graph import graph_manager
+from monoid.metadata.db import db
 from monoid.config import config
-import os
 
 runner = CliRunner()
 
@@ -12,6 +13,13 @@ runner = CliRunner()
 def mock_env(tmp_path, monkeypatch):
     config.notes_dir = tmp_path
     storage.root = tmp_path
+    # Reset database path and connection for test isolation
+    db.close()
+    db.db_path = tmp_path / "monoid.db"
+    db._conn = None
+    # Reset graph_manager state for test isolation
+    graph_manager.graph.clear()
+    graph_manager._dirty = True
     monkeypatch.setenv("OPENAI_API_KEY", "mock-key")
     return tmp_path
 

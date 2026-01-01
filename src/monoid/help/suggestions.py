@@ -83,7 +83,7 @@ class SuggestionManager:
 
         return None
 
-    def get_usage_stats(self) -> List[tuple]:
+    def get_usage_stats(self) -> List[tuple[str, int, str]]:
         """
         Get all usage statistics.
 

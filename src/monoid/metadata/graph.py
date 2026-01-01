@@ -1,7 +1,6 @@
 import networkx as nx
 from typing import List, Dict, Any
 from monoid.core.storage import storage
-from monoid.core.domain import Note
 
 class GraphManager:
     def __init__(self) -> None:
@@ -38,7 +37,8 @@ class GraphManager:
         # Weighted by shared tags
         for i, n1 in enumerate(notes):
             tags1 = set(t.name for t in n1.metadata.tags)
-            if not tags1: continue
+            if not tags1:
+                continue
             for n2 in notes[i+1:]:
                 tags2 = set(t.name for t in n2.metadata.tags)
                 intersection = tags1.intersection(tags2)
@@ -74,12 +74,14 @@ class GraphManager:
             for i, id1 in enumerate(ids):
                 v1 = vecs[id1]
                 norm1 = np.linalg.norm(v1)
-                if norm1 == 0: continue
-                
+                if norm1 == 0:
+                    continue
+
                 for id2 in ids[i+1:]:
                     v2 = vecs[id2]
                     norm2 = np.linalg.norm(v2)
-                    if norm2 == 0: continue
+                    if norm2 == 0:
+                        continue
                     
                     sim = np.dot(v1, v2) / (norm1 * norm2)
                     if sim > 0.8: # Semantic threshold

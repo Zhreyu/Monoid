@@ -1,7 +1,7 @@
 """Contextual tips system that provides helpful hints after commands."""
 
 import random
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from enum import Enum
 
 
@@ -106,7 +106,7 @@ class TipManager:
 
         return None
 
-    def should_show_tip(self, context: TipContext, **kwargs) -> bool:
+    def should_show_tip(self, context: TipContext, **kwargs: Any) -> bool:
         """
         Determine if a tip should be shown based on context and conditions.
 
@@ -119,20 +119,20 @@ class TipManager:
         """
         # Context-specific logic
         if context == TipContext.AFTER_SEARCH_FEW_RESULTS:
-            result_count = kwargs.get('result_count', 0)
-            return result_count < 3
+            result_count: int = kwargs.get('result_count', 0)
+            return bool(result_count < 3)
 
         if context == TipContext.AFTER_SEARCH_MANY_RESULTS:
             result_count = kwargs.get('result_count', 0)
-            return result_count > 20
+            return bool(result_count > 20)
 
         if context == TipContext.AFTER_LIST_MANY_NOTES:
-            note_count = kwargs.get('note_count', 0)
-            return note_count > 10
+            note_count: int = kwargs.get('note_count', 0)
+            return bool(note_count > 10)
 
         if context == TipContext.AFTER_FIRST_NOTE:
             note_count = kwargs.get('note_count', 0)
-            return note_count <= 3
+            return bool(note_count <= 3)
 
         # Default: show based on frequency
         return random.random() <= self.show_frequency

@@ -1,6 +1,6 @@
 import typer
 from rich.console import Console
-from monoid.cli import notes, search, ai, graph
+from monoid.cli import notes, search, ai, graph, templates
 
 app = typer.Typer(
     name="monoid",
@@ -33,6 +33,7 @@ app.command(name="tag")(ai.tag)
 app.command(name="autotag")(ai.autotag)
 
 app.add_typer(graph.app, name="graph", help="Knowledge graph operations")
+app.add_typer(templates.app, name="template", help="Template-based AI generation")
 
 @app.command()
 def version() -> None:

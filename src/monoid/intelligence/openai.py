@@ -86,3 +86,22 @@ class OpenAIProvider(AIProvider):
         except Exception as e:
             print(f"Error parsing AI tags: {e}")
             return []
+
+    def generate_from_template(self, content: str, template_name: str) -> str:
+        """Generate structured content using a template."""
+        from monoid.templates import registry
+
+        template = registry.get(template_name)
+        if not template:
+            raise ValueError(f"Template '{template_name}' not found")
+
+        prompt = template.format_prompt(content)
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": template.system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return str(response.choices[0].message.content or "")

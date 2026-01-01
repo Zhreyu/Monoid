@@ -9,6 +9,16 @@ def test_note_metadata_defaults():
     assert meta.type == NoteType.NOTE
     assert meta.tags == []
     assert meta.created is not None
+    assert meta.enhanced == 0
+
+def test_note_metadata_enhanced_field():
+    """Test the enhanced counter field."""
+    meta = NoteMetadata(id="123", enhanced=5)
+    assert meta.enhanced == 5
+
+    # Test increment
+    meta.enhanced += 1
+    assert meta.enhanced == 6
 
 def test_note_to_markdown():
     meta = NoteMetadata(id="123", title="Test Note", tags=["a", "b"])

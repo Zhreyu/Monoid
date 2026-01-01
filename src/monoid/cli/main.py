@@ -67,7 +67,7 @@ def show_tip(command: str, **context: Any) -> None:
         elif command == "graph":
             tip_context = TipContext.AFTER_GRAPH_VIEW
 
-        elif command in ["ask", "summarize", "synth", "quiz", "autotag"]:
+        elif command in ["ask", "summarize", "synth", "quiz", "autotag", "enhance"]:
             tip_context = TipContext.AFTER_AI_COMMAND
 
         # Try to show a tip
@@ -107,6 +107,7 @@ app.command(name="synth")(ai.synth)
 app.command(name="quiz")(ai.quiz)
 app.command(name="tag")(ai.tag)
 app.command(name="autotag")(ai.autotag)
+app.command(name="enhance")(ai.enhance)
 
 app.add_typer(graph.app, name="graph", help="Knowledge graph operations")
 app.add_typer(templates.app, name="template", help="Template-based AI generation")

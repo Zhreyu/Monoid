@@ -1,6 +1,6 @@
 from openai import OpenAI
 import json
-from typing import List
+from typing import List, Optional
 from monoid.config import config
 from monoid.intelligence.provider import AIProvider
 from monoid.core.domain import Note, NoteTag
@@ -102,6 +102,54 @@ class OpenAIProvider(AIProvider):
             messages=[
                 {"role": "system", "content": template.system_prompt},
                 {"role": "user", "content": prompt}
+            ]
+        )
+        return str(response.choices[0].message.content or "")
+
+    def enhance(self, content: str, extra_prompt: Optional[str] = None, context: Optional[str] = None) -> str:
+        """
+        Enhance note content: tighten prose, add corrections, expand {{{...}}} commands.
+        """
+        system_prompt = """You are enhancing a personal note. Your job:
+
+1. PROSE IMPROVEMENT: Tighten the English, fix grammar, improve clarity. Keep the original tone and voice. Don't make it formal unless it was already formal. Keep the casual vibe if it's casual.
+
+2. CONTENT AUGMENTATION: If you notice misconceptions, incomplete reasoning, or opportunities to add valuable context, weave corrections/additions naturally into the text. For DSA notes, point out edge cases, alternative approaches, or complexity considerations. Don't be preachy - just add value where it matters.
+
+3. COMMAND EXPANSION: Find all {{{...}}} blocks. These are natural language commands. Expand each into actual content:
+   - Tree diagrams → ASCII art showing the structure
+   - State space exploration → Show the decision tree with final answers (don't need to show all intermediate states, focus on the key decisions and outcomes)
+   - Complexity analysis → Big-O with brief explanation
+   - Example walkthrough → Step-by-step trace
+   - Edge cases → Bulleted list
+   - Intuition → Clear explanation
+
+   Wrap each expanded section like this:
+   ****
+   [expanded content here]
+   ****
+
+4. CONSTRAINTS:
+   - NEVER remove the user's original content - only enhance it
+   - Keep the same structure/headings
+   - Be concise - don't add fluff
+   - For DSA: focus on intuition and patterns, not just code
+   - Output the COMPLETE enhanced note, not just the changes
+   - Preserve any markdown formatting (headers, code blocks, lists)"""
+
+        user_content = f"Enhance this note:\n\n{content}"
+
+        if context:
+            user_content = f"Related notes for context:\n{context}\n\n---\n\n{user_content}"
+
+        if extra_prompt:
+            user_content += f"\n\nAdditional instructions: {extra_prompt}"
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
             ]
         )
         return str(response.choices[0].message.content or "")

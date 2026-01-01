@@ -42,6 +42,7 @@ class NoteMetadata(BaseModel):
     updated: Optional[datetime] = None
     links: List[str] = Field(default_factory=list) # Outgoing links (extracted or explicit)
     provenance: Optional[str] = None # ID of source note if derivative
+    enhanced: int = 0  # Track enhancement count
 
     @field_validator("type", mode="before")
     def validate_type(cls, v: Any) -> Any:

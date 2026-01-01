@@ -244,6 +244,29 @@ monoid autotag 20240101-1234
 monoid autotag 20240101-1234 --apply
 ```
 
+### `monoid enhance <note_id>`
+Enhance a note: tighten prose, add corrections, expand {{{commands}}}.
+
+**Options:**
+- `--prompt, -p` - Additional instructions for enhancement
+- `--with-context, -c` - Include related notes via tags/links for smarter enhancement
+- `--revert, -r` - Revert to pre-enhancement version (requires git)
+
+**Examples:**
+```bash
+# Basic enhancement
+monoid enhance 20240101-1234
+
+# With custom instructions
+monoid enhance 20240101-1234 --prompt "Make it more concise"
+
+# Include context from related notes
+monoid enhance 20240101-1234 --with-context
+
+# Revert if you don't like the changes
+monoid enhance 20240101-1234 --revert
+```
+
 ### `monoid template generate <template> <note_id>`
 Generate structured content using a template.
 

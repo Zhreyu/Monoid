@@ -61,7 +61,16 @@ class Database:
                 FOREIGN KEY(note_id) REFERENCES notes(id)
             )
         """)
-        
+
+        # Usage Stats Table (for contextual help/suggestions)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS usage_stats (
+                command TEXT PRIMARY KEY,
+                count INTEGER DEFAULT 0,
+                last_used DATETIME
+            )
+        """)
+
         # MIGRATION: Check columns
         # Check source/confidence in tags
         cur.execute("PRAGMA table_info(tags)")

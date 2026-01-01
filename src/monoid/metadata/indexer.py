@@ -15,6 +15,7 @@ class Indexer:
         cur.execute("DELETE FROM notes")
         cur.execute("DELETE FROM tags")
         cur.execute("DELETE FROM notes_fts")
+        cur.execute("DELETE FROM embeddings")
         
         notes = storage.list_notes()
         

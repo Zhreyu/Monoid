@@ -19,6 +19,20 @@ class NoteTag(BaseModel):
     def __hash__(self) -> int:
         return hash((self.name, self.source))
 
+    @property
+    def is_user_tag(self) -> bool:
+        """Check if this is a user-created tag."""
+        return self.source == "user"
+
+    @property
+    def is_ai_tag(self) -> bool:
+        """Check if this is an AI-suggested tag."""
+        return self.source == "ai"
+
+    def is_high_confidence(self, threshold: float = 0.7) -> bool:
+        """Check if this tag meets the confidence threshold."""
+        return self.confidence >= threshold
+
 class NoteMetadata(BaseModel):
     id: str
     type: NoteType = NoteType.NOTE
@@ -49,6 +63,26 @@ class NoteMetadata(BaseModel):
             elif isinstance(item, NoteTag):
                 parsed.append(item)
         return parsed
+
+    def get_visible_tags(self, threshold: float = 0.7) -> List[NoteTag]:
+        """Get tags that should be visible (user tags + high-confidence AI tags)."""
+        return [tag for tag in self.tags if tag.is_user_tag or tag.is_high_confidence(threshold)]
+
+    def get_user_tags(self) -> List[NoteTag]:
+        """Get only user-created tags."""
+        return [tag for tag in self.tags if tag.is_user_tag]
+
+    def get_ai_tags(self, min_confidence: float = 0.0) -> List[NoteTag]:
+        """Get AI-suggested tags, optionally filtered by confidence."""
+        return [tag for tag in self.tags if tag.is_ai_tag and tag.confidence >= min_confidence]
+
+    def get_high_confidence_tags(self, threshold: float = 0.7) -> List[NoteTag]:
+        """Get all high-confidence tags (both user and AI)."""
+        return [tag for tag in self.tags if tag.is_user_tag or tag.is_high_confidence(threshold)]
+
+    def get_low_confidence_tags(self, threshold: float = 0.7) -> List[NoteTag]:
+        """Get AI tags below the confidence threshold (suggestions)."""
+        return [tag for tag in self.tags if tag.is_ai_tag and tag.confidence < threshold]
 
 class Note(BaseModel):
     metadata: NoteMetadata

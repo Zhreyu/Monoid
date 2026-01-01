@@ -27,3 +27,8 @@ class AIProvider(ABC):
     def suggest_tags(self, content: str) -> List[NoteTag]:
         """Suggest tags for the content."""
         pass
+
+    @abstractmethod
+    def generate_from_template(self, content: str, template_name: str) -> str:
+        """Generate structured content using a template."""
+        pass

@@ -42,7 +42,7 @@ Monoid organizes functionality into three independent layers:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/monoid.git
+git clone https://github.com/zhreyu/monoid.git
 cd monoid
 
 # Install with uv (recommended)

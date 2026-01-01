@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monoid Knowledge Graph</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a1a; color: #e0e0e0; overflow: hidden; }
+        #controls { position: fixed; top: 20px; left: 20px; background: rgba(30, 30, 30, 0.95); padding: 20px; border-radius: 8px; z-index: 1000; max-width: 300px; }
+        h1 { font-size: 24px; margin-bottom: 15px; color: #4a9eff; }
+        .control-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 12px; color: #b0b0b0; text-transform: uppercase; }
+        input[type="text"], select { width: 100%; padding: 8px; background: #2a2a2a; border: 1px solid #404040; border-radius: 4px; color: #e0e0e0; }
+        input:focus, select:focus { outline: none; border-color: #4a9eff; }
+        #stats { font-size: 12px; color: #888; padding-top: 10px; border-top: 1px solid #404040; }
+        #tooltip { position: fixed; background: rgba(20, 20, 20, 0.95); padding: 12px 16px; border-radius: 6px; pointer-events: none; display: none; z-index: 2000; border: 1px solid #404040; }
+        #tooltip .title { font-weight: bold; font-size: 14px; margin-bottom: 6px; color: #4a9eff; }
+        #tooltip .meta { font-size: 11px; color: #b0b0b0; margin-bottom: 3px; }
+        .tag { display: inline-block; background: #2a4a6a; padding: 2px 6px; border-radius: 3px; margin: 2px; font-size: 10px; }
+        #legend { position: fixed; bottom: 20px; left: 20px; background: rgba(30, 30, 30, 0.95); padding: 15px; border-radius: 8px; z-index: 1000; }
+        .legend-title { font-size: 12px; font-weight: bold; margin-bottom: 8px; color: #b0b0b0; text-transform: uppercase; }
+        .legend-item { display: flex; align-items: center; margin: 5px 0; font-size: 12px; }
+        .legend-color { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+        #graph { width: 100vw; height: 100vh; }
+        .node { cursor: pointer; stroke: #fff; stroke-width: 1.5px; }
+        .node.selected { stroke: #ffd700; stroke-width: 3px; }
+        .link { stroke: #999; stroke-opacity: 0.3; }
+        .link.highlighted { stroke: #4a9eff; stroke-opacity: 0.8; stroke-width: 2px; }
+        .node-label { font-size: 10px; fill: #e0e0e0; pointer-events: none; text-anchor: middle; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <h1>Knowledge Graph</h1>
+        <div class="control-group">
+            <label for="search">Search Nodes</label>
+            <input type="text" id="search" placeholder="Search by title...">
+        </div>
+        <div class="control-group">
+            <label for="filterType">Filter by Type</label>
+            <select id="filterType">
+                <option value="all">All Types</option>
+                <option value="note">Note</option>
+                <option value="summary">Summary</option>
+                <option value="synthesis">Synthesis</option>
+                <option value="quiz">Quiz</option>
+                <option value="template">Template</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="filterTag">Filter by Tag</label>
+            <select id="filterTag"><option value="all">All Tags</option></select>
+        </div>
+        <div id="stats">
+            <div><strong>Stats</strong></div>
+            <div id="nodeCount">Nodes: 0</div>
+            <div id="edgeCount">Edges: 0</div>
+            <div id="selectedNode">Selected: None</div>
+        </div>
+    </div>
+    <div id="legend">
+        <div class="legend-title">Node Types</div>
+        <div class="legend-item"><div class="legend-color" style="background: #4a9eff;"></div><span>Note</span></div>
+        <div class="legend-item"><div class="legend-color" style="background: #50c878;"></div><span>Summary</span></div>
+        <div class="legend-item"><div class="legend-color" style="background: #9370db;"></div><span>Synthesis</span></div>
+        <div class="legend-item"><div class="legend-color" style="background: #ff8c42;"></div><span>Quiz</span></div>
+        <div class="legend-item"><div class="legend-color" style="background: #808080;"></div><span>Template</span></div>
+    </div>
+    <div id="tooltip"></div>
+    <svg id="graph"></svg>
+    <script>
+        const width = window.innerWidth, height = window.innerHeight;
+        const colorMap = { 'note': '#4a9eff', 'summary': '#50c878', 'synthesis': '#9370db', 'quiz': '#ff8c42', 'template': '#808080' };
+        const svg = d3.select('#graph').attr('width', width).attr('height', height);
+        const g = svg.append('g');
+        svg.call(d3.zoom().scaleExtent([0.1, 10]).on('zoom', (e) => g.attr('transform', e.transform)));
+        let allNodes = [], allEdges = [], selectedNode = null;
+        const simulation = d3.forceSimulation()
+            .force('link', d3.forceLink().id(d => d.id).distance(100))
+            .force('charge', d3.forceManyBody().strength(-300))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(30));
+        let link, node, label;
+        fetch('/api/graph').then(r => r.json()).then(data => {
+            allNodes = data.nodes; allEdges = data.edges;
+            const tags = new Set();
+            data.nodes.forEach(n => n.tags.forEach(t => tags.add(t)));
+            const tagFilter = document.getElementById('filterTag');
+            Array.from(tags).sort().forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; tagFilter.appendChild(o); });
+            updateGraph();
+        });
+        function updateGraph() {
+            const search = document.getElementById('search').value.toLowerCase();
+            const type = document.getElementById('filterType').value;
+            const tag = document.getElementById('filterTag').value;
+            let nodes = allNodes.filter(n => (!search || n.title.toLowerCase().includes(search)) && (type === 'all' || n.type === type) && (tag === 'all' || n.tags.includes(tag)));
+            const ids = new Set(nodes.map(n => n.id));
+            let edges = allEdges.filter(e => ids.has(e.source.id || e.source) && ids.has(e.target.id || e.target));
+            document.getElementById('nodeCount').textContent = `Nodes: ${nodes.length}`;
+            document.getElementById('edgeCount').textContent = `Edges: ${edges.length}`;
+            g.selectAll('*').remove();
+            link = g.append('g').selectAll('line').data(edges).join('line').attr('class', 'link').attr('stroke-opacity', d => d.weight * 0.5 || 0.3);
+            node = g.append('g').selectAll('circle').data(nodes).join('circle').attr('class', 'node').attr('r', d => 5 + Math.sqrt(d.degree) * 3).attr('fill', d => colorMap[d.type] || '#808080').call(d3.drag().on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }).on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; }).on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })).on('mouseover', showTooltip).on('mouseout', hideTooltip).on('click', clickNode);
+            label = g.append('g').selectAll('text').data(nodes).join('text').attr('class', 'node-label').attr('dy', d => -(5 + Math.sqrt(d.degree) * 3 + 5)).text(d => d.title.length > 20 ? d.title.substring(0, 20) + '...' : d.title).style('display', 'none');
+            simulation.nodes(nodes); simulation.force('link').links(edges); simulation.alpha(1).restart();
+            simulation.on('tick', () => { link.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y); node.attr('cx', d => d.x).attr('cy', d => d.y); label.attr('x', d => d.x).attr('y', d => d.y); });
+        }
+        function showTooltip(e, d) { const t = document.getElementById('tooltip'); t.style.display = 'block'; t.style.left = (e.pageX + 10) + 'px'; t.style.top = (e.pageY + 10) + 'px'; t.innerHTML = `<div class="title">${d.title}</div><div class="meta">Type: ${d.type}</div><div class="meta">Connections: ${d.degree}</div><div class="meta">ID: ${d.id}</div>${d.tags.map(t => `<span class="tag">${t}</span>`).join('')}`; label.filter(n => n.id === d.id).style('display', 'block'); }
+        function hideTooltip(e, d) { document.getElementById('tooltip').style.display = 'none'; if (!selectedNode || selectedNode.id !== d.id) label.filter(n => n.id === d.id).style('display', 'none'); }
+        function clickNode(e, d) { node.classed('selected', false); link.classed('highlighted', false); label.style('display', 'none'); selectedNode = d; document.getElementById('selectedNode').textContent = `Selected: ${d.title}`; node.filter(n => n.id === d.id).classed('selected', true); label.filter(n => n.id === d.id).style('display', 'block'); link.classed('highlighted', e => (e.source.id || e.source) === d.id || (e.target.id || e.target) === d.id); }
+        document.getElementById('search').addEventListener('input', updateGraph);
+        document.getElementById('filterType').addEventListener('change', updateGraph);
+        document.getElementById('filterTag').addEventListener('change', updateGraph);
+        svg.on('click', function(e) { if (e.target === this) { selectedNode = null; node.classed('selected', false); link.classed('highlighted', false); label.style('display', 'none'); document.getElementById('selectedNode').textContent = 'Selected: None'; } });
+    </script>
+</body>
+</html>

@@ -61,3 +61,16 @@ def ascii() -> None:
     
     if len(components) > 1:
         console.print("[dim]Use 'monoid graph export' to visualize structure in Gephi.[/dim]")
+
+
+@app.command()
+def web(port: int = 8765, no_browser: bool = False) -> None:
+    """Launch interactive web-based graph visualization."""
+    from monoid.web.graph_server import start_server
+    console.print("[cyan]Building knowledge graph...[/cyan]")
+    try:
+        start_server(port=port, open_browser=not no_browser)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Server stopped[/yellow]")
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")

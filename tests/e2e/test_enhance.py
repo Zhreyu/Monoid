@@ -90,7 +90,9 @@ class TestEnhanceCommand:
             "chef's kiss",
             "sharp",
             "upgraded",
-            "broke ass English"
+            "broke ass English",
+            "polished",
+            "Fixed"
         ])
 
         # Verify content was updated

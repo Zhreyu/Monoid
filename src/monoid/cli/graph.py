@@ -1,9 +1,43 @@
+import random
 import typer
 from rich.console import Console
 from monoid.metadata.graph import graph_manager
 
 app = typer.Typer()
 console = Console()
+
+FUNNY_MESSAGES = [
+    "Your neurons are now connected. Time for a coffee break.",
+    "Graph complete. Your notes are now gossiping about each other.",
+    "Done! Your ideas are holding hands in a big circle.",
+    "Built. Your knowledge graph is more connected than your LinkedIn.",
+    "Connections forged. Even your grocery lists found soulmates.",
+    "Graph assembled. It's like a party where all your thoughts finally met.",
+    "Complete! Your notes went from strangers to best friends.",
+    "Done. The graph is so dense, even your shower thoughts are cited.",
+]
+
+
+@app.command()
+def build() -> None:
+    """Build/rebuild the knowledge graph from all notes."""
+    from monoid.metadata.indexer import indexer
+
+    with console.status("[cyan]Syncing notes from disk...[/cyan]"):
+        indexer.sync_all()
+
+    with console.status("[cyan]Building knowledge graph...[/cyan]"):
+        graph_manager.build_graph()
+
+    stats = graph_manager.get_stats()
+
+    console.print("\n[bold green]✓ Knowledge graph built![/bold green]")
+    console.print(f"  Nodes: [cyan]{stats['nodes']}[/cyan]")
+    console.print(f"  Edges: [cyan]{stats['edges']}[/cyan]")
+    console.print(f"  Density: [cyan]{stats['density']:.4f}[/cyan]")
+    console.print(f"  Components: [cyan]{stats['components']}[/cyan]")
+    console.print(f"\n[dim italic]{random.choice(FUNNY_MESSAGES)}[/dim italic]")
+
 
 @app.command()
 def stats() -> None:

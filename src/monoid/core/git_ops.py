@@ -1,7 +1,6 @@
 """Git operations for note versioning."""
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 
 def is_git_repo(path: Path) -> bool:

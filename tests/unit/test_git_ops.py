@@ -1,7 +1,5 @@
-import pytest
 import subprocess
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from monoid.core.git_ops import is_git_repo, git_commit_note, git_revert_note, get_note_git_history
 
 

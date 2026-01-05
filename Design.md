@@ -1,446 +1,543 @@
-# Monoid — Final Design Specification
+  ---
+  Monoid — Design Document
+
+  Executive Summary
+
+  Monoid is a CLI-first, plaintext-based personal notes system with AI augmentation. It's designed for developers and learners who want to capture knowledge quickly, organize it transparently, and discover patterns across their notes over time.
+
+  One-sentence value proposition: A notes CLI that captures thoughts quickly, organizes them transparently, and reveals connections you didn't know existed.
+
+  ---
+  Architecture Overview
+
+  Three-Layer Design
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  Layer 3: Intelligence (Optional)                           │
+  │  AI generation, auto-tagging, synthesis, Q&A                │
+  ├─────────────────────────────────────────────────────────────┤
+  │  Layer 2: Metadata (Enhancement)                            │
+  │  Tags, FTS index, embeddings, knowledge graph               │
+  ├─────────────────────────────────────────────────────────────┤
+  │  Layer 1: Notes (Core)                                      │
+  │  Capture, edit, store, display, keyword search              │
+  └─────────────────────────────────────────────────────────────┘
+
+  Key Principle: Each layer is independently useful. Core functionality works offline; AI is opt-in and explicit.
+
+  Directory Structure
+
+  src/monoid/
+  ├── cli/                    # CLI commands (Typer app)
+  │   ├── main.py            # Entry point & routing
+  │   ├── notes.py           # new, list, show, edit
+  │   ├── search.py          # search, index
+  │   ├── ai.py              # AI commands
+  │   ├── graph.py           # Graph visualization
+  │   └── templates.py       # Template system
+  ├── core/                   # Core data structures
+  │   ├── domain.py          # Note, NoteMetadata, NoteTag models
+  │   ├── storage.py         # Markdown file I/O
+  │   └── git_ops.py         # Git integration
+  ├── metadata/               # Indexing layer
+  │   ├── db.py              # SQLite schema
+  │   ├── indexer.py         # FTS & search
+  │   ├── embeddings.py      # Semantic embeddings
+  │   └── graph.py           # Knowledge graph
+  ├── intelligence/           # AI abstraction
+  │   ├── provider.py        # Abstract base class
+  │   └── openai.py          # OpenAI implementation
+  └── templates/              # Template system
+      ├── registry.py        # Template registry
+      └── builtin.py         # Built-in templates
+
+  ---
+  Core Data Models
+
+  Note Structure
+
+  Notes are stored as Markdown files with YAML frontmatter:
+
+  ---
+  id: "20250103142530"
+  type: note
+  title: "Two Sum - HashMap Approach"
+  tags:
+    - name: algorithm
+      source: user
+      confidence: 1.0
+    - name: hashmap
+      source: ai
+      confidence: 0.92
+  created: 2025-01-03T14:25:30.123456
+  updated: null
+  links: []
+  provenance: null
+  enhanced: 0
+  ---
+
+  Use a hashmap to store complements. O(n) time, O(n) space.
+
+  Note Types
+
+  | Type      | Description                           |
+  |-----------|---------------------------------------|
+  | note      | Human-written content (default)       |
+  | summary   | AI-generated summary of one note      |
+  | synthesis | AI-generated abstraction across notes |
+  | quiz      | AI-generated study material           |
+  | template  | AI-generated structured note          |
+
+  Tag System
+
+  Tags carry source and confidence metadata:
+
+  - User tags (source: user, confidence: 1.0): Always visible
+  - AI high-confidence (source: ai, confidence ≥ 0.7): Visible by default
+  - AI low-confidence (source: ai, confidence < 0.7): Hidden, shown with --all-tags
+
+  ---
+  Feature Reference
+
+  1. Note Creation (monoid new)
 
-## 1. Purpose & Value Proposition
+  Create notes via CLI argument, stdin, or interactive editor.
 
-**Purpose**
-A personal, CLI-first notes system that prioritizes **human thinking**, augments it with AI **only when explicitly invoked**, and helps users discover **patterns, connections, and abstractions** across their notes over time.
+  Usage:
+  # Direct content
+  monoid new "Two Sum - use hashmap to store complement, O(n) time"
 
-**One-sentence value proposition**
-*A notes CLI that captures thoughts quickly, organizes them transparently, and reveals connections you didn’t know existed.*
+  # With title and tags
+  monoid new "Quick sort uses divide and conquer" --title "QuickSort" --tag sorting --tag recursion
 
----
+  # Pipe from stdin
+  echo "Binary search requires sorted input" | monoid new
 
-## 2. Core Design Principles
+  # Interactive editor (opens $EDITOR)
+  monoid new
 
-1. **CLI-first, Unix-native**
+  Expected Output:
+  Created note: 20250103142530 (/home/user/monoid-notes/20250103142530.md)
 
-   * Pipeable, scriptable, composable
-   * Works naturally with grep, fzf, xargs, git
+  ---
+  2. List Notes (monoid list)
 
-2. **Human-first authorship**
+  Display all notes in a formatted table.
 
-   * Notes are written by humans
-   * AI output is always derivative, labeled, and reversible
+  Usage:
+  monoid list                # Show notes with visible tags
+  monoid list --all-tags     # Include low-confidence AI tags
 
-3. **AI-augmented, not AI-dependent**
+  Expected Output:
+                             Notes (5)
+  ┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
+  ┃ ID             ┃ Created          ┃ Type   ┃ Title/Snippet       ┃ Tags             ┃
+  ┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
+  │ 20250103142530 │ 2025-01-03 14:25 │ note   │ Two Sum - HashMap   │ algorithm, hash  │
+  │ 20250103141200 │ 2025-01-03 14:12 │ note   │ Binary Search       │ algorithm(85%)   │
+  └────────────────┴──────────────────┴────────┴─────────────────────┴──────────────────┘
+  2 notes have additional AI-suggested tags. Use --all-tags to see them.
 
-   * Core functionality works offline
-   * AI is opt-in and explicitly invoked
+  ---
+  3. Show Note (monoid show)
 
-4. **Plaintext as source of truth**
+  Display a specific note with metadata.
 
-   * Markdown files are canonical
-   * Databases are derived acceleration layers
+  Usage:
+  monoid show 20250103142530
+  monoid show 20250103142530 --all-tags
 
-5. **Progressive disclosure**
+  Expected Output:
+  ID: 20250103142530
+  Title: Two Sum - HashMap Approach
+  Tags: algorithm, hashmap
+  AI Tags: two-pointers(85%), array(72%)
+  Type: note | Created: 2025-01-03 14:25:30.123456
+  --------------------
+  Use a hashmap to store complements. O(n) time, O(n) space.
 
-   * Simple usage works immediately
-   * Advanced features are discoverable, not mandatory
+  ---
+  4. Edit Note (monoid edit)
 
-6. **Trust through transparency**
+  Open note in your configured editor.
 
-   * AI confidence is visible
-   * Provenance is explicit
-   * Nothing silently overwrites user data
+  Usage:
+  monoid edit 20250103142530
 
----
+  Opens the file in $EDITOR (default: nano). Re-indexes after save.
 
-## 3. Mental Model & Layering
+  ---
+  5. Search (monoid search)
 
-The system is organized into **three independent layers**, each usable on its own.
+  Multi-modal search with FTS, semantic, tags, and hybrid modes.
 
-### Layer 1: Notes (Core)
+  Usage:
+  # Full-text search (FTS)
+  monoid search "machine learning"
 
-* Capture
-* Edit
-* Store
-* Display
-* Keyword search
+  # Tag search (ANY match)
+  monoid search --tags python,ai
 
-This layer **must feel faster than raw files + editor**.
+  # Tag search (ALL must match)
+  monoid search --tags python,ai --all
 
----
+  # Semantic search (embedding similarity)
+  monoid search "neural networks" --semantic
 
-### Layer 2: Metadata (Enhancement)
+  # Hybrid search (FTS + semantic + tags)
+  monoid search "deep learning" --hybrid --tags ai
 
-* Tags
-* Full-text search index
-* Knowledge graph
-* Embeddings (optional)
+  # Limit results
+  monoid search "sorting" --top 5
 
-This layer accelerates retrieval and navigation but is **never authoritative**.
+  Expected Output (FTS):
+                       Full-Text Search: 'sorting'
+  ┏━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┓
+  ┃ Score   ┃ ID                 ┃ Title               ┃ Details               ┃
+  ┡━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━┩
+  │ 2.450   │ 20250103142530     │ QuickSort           │ Quick sort uses div...│
+  │ 1.832   │ 20250103141200     │ MergeSort           │ Merge sort is stab... │
+  └─────────┴────────────────────┴─────────────────────┴───────────────────────┘
 
----
+  Found 2 results (mode: Full-Text Search)
 
-### Layer 3: Intelligence (Optional)
+  Expected Output (Hybrid):
+                   Hybrid Search: 'deep learning' [tags: ai]
+  ┏━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━┓
+  ┃ Score   ┃ ID             ┃ Title          ┃ FTS    ┃ Semantic ┃ Tag    ┃
+  ┡━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━┩
+  │ 0.876   │ 20250103142530 │ Neural Nets    │ 0.45   │ 0.92     │ 0.80   │
+  └─────────┴────────────────┴────────────────┴────────┴──────────┴────────┘
 
-* AI-assisted generation
-* Auto-tagging
-* Summarization
-* Synthesis
-* Q&A
+  ---
+  6. AI Q&A (monoid ask)
 
-This layer **never mutates Layer 1 content directly**.
+  Ask questions grounded in your notes.
 
----
+  Usage:
+  monoid ask "What's the time complexity of quicksort?"
 
-## 4. Note Model & Semantics
+  Expected Output:
+  Thinking...
+  Answer:
+  Based on your notes, QuickSort has:
+  - Average case: O(n log n)
+  - Worst case: O(n²) when pivot selection is poor
+  - Your note mentions using randomized pivot to avoid worst case.
 
-### Canonical Storage
+  ---
+  7. Summarize (monoid summarize)
 
-* Notes are stored as **Markdown files**
-* YAML frontmatter holds metadata
-* Files are readable, editable, and versionable via git
+  Generate a concise summary of a note.
 
-### Identity
+  Usage:
+  monoid summarize 20250103142530
 
-* Notes use **timestamp-based short IDs**
-* IDs are:
+  Expected Output:
+  Generating summary...
+  Summary of 20250103142530:
+  HashMap-based solution for Two Sum: store each number's complement
+  as you iterate. O(n) time due to single pass, O(n) space for the map.
 
-  * Chronologically sortable
-  * Human-readable
-  * Stable across edits
-  * Safe for wikilinks
+  ---
+  8. Synthesis (monoid synth)
 
-### Artifact Types
+  Synthesize insights across related notes on a topic.
 
-Every note has a `type` that communicates intent:
+  Usage:
+  monoid synth "sorting algorithms"
 
-* `note` — human-written content (default)
-* `summary` — AI-generated TL;DR of one note
-* `synthesis` — AI-generated abstraction across multiple notes
-* `quiz` — AI-generated study material
-* `template` — AI-generated structured note from context
+  Expected Output:
+  Synthesizing 5 notes...
+  Synthesis on 'sorting algorithms':
 
-This type system:
+  Your notes cover several comparison-based sorts:
 
-* Prevents AI noise from polluting core notes
-* Enables filtering, regeneration, and cleanup
-* Preserves authorship boundaries
+  1. **QuickSort** - Divide & conquer, O(n log n) average, in-place
+  2. **MergeSort** - Stable, O(n log n) guaranteed, requires O(n) space
+  3. **HeapSort** - Uses heap structure, O(n log n), in-place
 
----
+  Pattern observed: You tend to note space/time tradeoffs for each.
+  MergeSort is your go-to for stability requirements.
 
-## 5. Pattern Capture (DSA, Thinking Templates, Abstractions)
+  ---
+  9. Quiz Generation (monoid quiz)
 
-The system explicitly supports **pattern-oriented knowledge**, such as:
+  Generate study material from a note.
 
-* DSA solving strategies (e.g. LIS, two pointers)
-* Architectural patterns
-* Mental heuristics
-* Decision frameworks
+  Usage:
+  monoid quiz 20250103142530
 
-### Design Choice: Pattern as a Convention, Not a Schema
+  Expected Output:
+  Generating quiz...
+  Quiz:
 
-Patterns are represented as **regular notes with semantic tagging**, not a new entity type.
+  Q1: What data structure does the Two Sum solution use?
+  A1: HashMap
 
-* Identified via tags such as:
+  Q2: What is the time complexity of the HashMap approach?
+  A2: O(n)
 
-  * `pattern`
-  * `dsa`
-  * `dp`
-  * `lis`
-* Linked to concrete instances via:
+  Q3: Why do we store complements instead of the numbers themselves?
+  A3: To check in O(1) if the complement exists for each number.
 
-  * Wikilinks
-  * `source_notes` metadata
-  * Graph relationships
+  ---
+  10. Auto-Tagging (monoid tag, monoid autotag)
 
-This avoids premature ontology lock-in while enabling:
+  AI-powered tag suggestions.
 
-* Semantic retrieval
-* Graph clustering
-* Cross-problem synthesis
+  Single Note:
+  monoid tag 20250103142530
 
----
+  Expected Output:
+  Analyzing tags...
+  Suggested Tags:
+  - hashmap (ai, 0.92)
+  - array (ai, 0.85)
+  - two-pointers (ai, 0.71)
 
-## 6. Metadata & Indexing Strategy
+  Apply specific tags? [y/N]: y
+  Tags applied!
 
-### Full-Text Search (FTS)
+  Batch All Notes:
+  monoid autotag              # Process untagged notes
+  monoid autotag --force      # Re-process all notes
+  monoid autotag --dry-run    # Preview without applying
 
-* Implemented as a **derived cache**
-* Rebuilt fully on note updates
-* Never treated as authoritative
+  Expected Output:
+  Processing 10 notes...
+  Analyzing 20250103142530...
+    + Added: hashmap, algorithm
+  Analyzing 20250103141200...
+    + Added: binary-search, divide-conquer
+  Updated 8 notes.
 
-Rationale:
+  ---
+  11. Enhancement (monoid enhance)
 
-* Avoids frontmatter drift bugs
-* Keeps correctness simple and robust
+  AI-powered note enhancement with filler prompt expansion.
 
----
+  Basic Enhancement:
+  monoid enhance 20250103142530
 
-### Tags with Confidence & Provenance
+  With Extra Instructions:
+  monoid enhance 20250103142530 --prompt "Add edge cases"
 
-Tags are explicitly typed by source:
+  With Related Context:
+  monoid enhance 20250103142530 --with-context
 
-* **User tags**
+  Revert Enhancement:
+  monoid enhance 20250103142530 --revert
 
-  * Always visible
-  * Never overwritten
-* **AI high-confidence tags**
+  Filler Prompt Feature:
 
-  * Visible by default
-  * Confidence ≥ threshold
-* **AI low-confidence tags**
+  Before:
+  # Binary Tree Notes
 
-  * Hidden unless requested
-  * Treated as suggestions
+  Here's my array: [1, 2, 3, 4, 5, 6, 7]
 
-Design goals:
+  {{{ recursive tree of this array }}}
 
-* Maintain user trust
-* Surface AI uncertainty honestly
-* Allow safe re-tagging over time
+  After monoid enhance <id>:
+  # Binary Tree Notes
 
----
+  Here's my array: [1, 2, 3, 4, 5, 6, 7]
 
-### Embeddings (Optional, Offline-Capable)
+          1
+         / \
+        2   3
+       / \ / \
+      4  5 6  7
 
-* Stored as **JSON arrays**, not binary blobs
-* Versioned by model + dimension
-* Multiple embedding models may coexist
+  Expected Output:
+  Backed up to git (just in case)
+  Polishing your thoughts...
+  Your note just graduated from 'meh' to 'chef's kiss'
+  Expanded 1 {{{...}}} block(s)
+  Enhancement count: 1
 
-Rationale:
+  ---
+  12. Knowledge Graph (monoid graph)
 
-* Future-proof storage
-* Debuggable and migratable
-* No dependency on Python internals
+  Build and visualize note connections.
 
-Embeddings are an **acceleration structure**, never a requirement.
+  Build Graph:
+  monoid graph build
 
----
+  View Statistics:
+  monoid graph stats
 
-## 7. Knowledge Graph Design
+  Expected Output:
+  Knowledge Graph Statistics:
+  - Nodes: 45
+  - Edges: 127
+  - Density: 0.064
+  - Components: 3
+  - Largest component: 42 nodes
 
-### Purpose
+  ASCII Visualization:
+  monoid graph ascii
 
-The graph exists to:
+  Expected Output:
+  Knowledge Graph - Top Hubs
 
-* Reveal conceptual connections
-* Support navigation
-* Encourage abstraction
+  Most Connected Notes:
+    [20250103142530] Two Sum (12 connections)
+    [20250103141200] Binary Search (8 connections)
+    [20250102150000] DP Patterns (7 connections)
 
-Not to be visually impressive.
+  Clusters:
+    Cluster 1 (15 notes): algorithm, sorting, searching
+    Cluster 2 (12 notes): dp, optimization, memoization
+    Cluster 3 (8 notes): graph, bfs, dfs
 
----
+  Interactive Web Visualization:
+  monoid graph web                    # Opens browser at localhost:8765
+  monoid graph web --port 9000        # Custom port
+  monoid graph web --no-browser       # Don't auto-open browser
 
-### Edge Construction Policy (Bounded)
+  Export to GEXF (Gephi format):
+  monoid graph export
 
-Edges are derived from:
+  ---
+  13. Template-Based Generation (monoid template)
 
-* Explicit wikilinks (always included)
-* Semantic similarity (above threshold)
-* Shared tags (minimum overlap)
-* Temporal proximity (weak signal)
+  Generate structured notes using predefined templates.
 
-**Critical constraint**:
+  List Templates:
+  monoid template list
 
-* Only top-K strongest edges per note are materialized
+  Expected Output:
+  Available Templates:
+  - dsa-pattern: Data structures & algorithms pattern
+  - architecture: Software architecture pattern
+  - concept: Learning concept breakdown
+  - decision: Decision framework
 
-This ensures:
+  Show Template Structure:
+  monoid template show dsa-pattern
 
-* Predictable size
-* Fast rebuilds
-* Signal > noise
+  Generate from Template:
+  monoid template generate 20250103142530 --template dsa-pattern
 
----
+  ---
+  14. Force Re-Index (monoid index)
 
-### Graph Rebuild Philosophy
+  Rebuild the search index from filesystem.
 
-* Incremental rebuilds are **best-effort optimizations**
-* Full rebuilds are the correctness fallback
-* Staleness is tracked explicitly
+  Usage:
+  monoid index
 
-Rule:
+  Expected Output:
+  Indexing notes...
+  Indexing complete.
 
-> When in doubt, mark stale and require a rebuild.
+  ---
+  Storage Architecture
 
----
+  File Storage
 
-### Visualization Split by Intent
+  - Location: $MONOID_NOTES_DIR (default: ~/monoid-notes/)
+  - Format: Markdown with YAML frontmatter
+  - Naming: {timestamp_id}.md (e.g., 20250103142530.md)
 
-**ASCII Graph**
+  SQLite Database
 
-* Fast
-* Deterministic
-* Navigation-oriented
-* Small, shallow, readable
+  - Location: {notes_dir}/monoid.db
+  - Tables:
+    - notes - Note metadata cache
+    - tags - Tag index with source/confidence
+    - notes_fts - FTS5 virtual table
+    - embeddings - Vector embeddings (JSON)
+    - usage_stats - Command usage tracking
 
-**Web Graph**
+  Knowledge Graph
 
-* Exploratory
-* Interactive
-* Pattern discovery
-* Structural understanding
+  - Library: NetworkX (directed graph)
+  - Edge Types: explicit links, tag overlap, provenance, semantic similarity
+  - Persistence: Rebuilt on demand, cached in memory
 
-These serve different cognitive purposes and are intentionally separated.
+  ---
+  Configuration
 
----
+  Environment Variables
 
-## 8. AI Integration Philosophy
+  | Variable                        | Default           | Description                   |
+  |---------------------------------|-------------------|-------------------------------|
+  | MONOID_NOTES_DIR                | ~/monoid-notes    | Notes storage directory       |
+  | OPENAI_API_KEY                  | (required for AI) | OpenAI API key                |
+  | EDITOR                          | nano              | Editor for monoid edit        |
+  | MONOID_TAG_CONFIDENCE_THRESHOLD | 0.7               | Threshold for showing AI tags |
 
-### Invocation Rules
+  Setup Example
 
-* AI is **never automatic**
-* Every AI action is explicit
-* Latency is visible and honest
+  export MONOID_NOTES_DIR="$HOME/notes"
+  export OPENAI_API_KEY="sk-..."
+  export EDITOR="vim"
 
----
+  ---
+  Design Principles
 
-### AI Output Discipline
+  1. CLI-first, Unix-native — Pipeable, scriptable, composable
+  2. Human-first authorship — AI output is derivative, labeled, reversible
+  3. AI-augmented, not AI-dependent — Core works offline
+  4. Plaintext as truth — Markdown files are canonical; databases are derived
+  5. Progressive disclosure — Simple usage works immediately
+  6. Trust through transparency — AI confidence is visible, provenance explicit
 
-* AI output always becomes a **new artifact**
-* Original notes are never modified
-* All AI content carries provenance:
+  ---
+  Explicit Non-Goals
 
-  * Model
-  * Source notes
-  * Type
+  - Encryption (delegate to disk-level security)
+  - Sync or collaboration
+  - Mobile or web UI (except graph visualization)
+  - Plugin systems
+  - Real-time features
+  - Spaced repetition
+  - Custom markdown dialects
 
-This enables:
+  ---
+  Dependencies
 
-* Regeneration
-* Deletion
-* Auditing
-* Trust
+  | Package               | Version | Purpose                  |
+  |-----------------------|---------|--------------------------|
+  | typer                 | ≥0.21.0 | CLI framework            |
+  | pydantic              | ≥2.12.5 | Data validation          |
+  | rich                  | ≥14.2.0 | Terminal formatting      |
+  | python-frontmatter    | ≥1.1.0  | YAML frontmatter parsing |
+  | networkx              | ≥3.6.1  | Graph algorithms         |
+  | openai                | ≥2.14.0 | AI provider              |
+  | sentence-transformers | ≥5.2.0  | Semantic embeddings      |
+  | numpy                 | ≥2.4.0  | Numerical operations     |
 
----
+  ---
+  Installation
 
-### Template-Based Generation
+  git clone https://github.com/zhreyu/monoid.git
+  cd monoid
+  uv sync  # or: pip install -e .
 
-Templates guide AI toward:
+  ---
+  Typical Workflow Example
 
-* Structure
-* Abstraction
-* Pattern extraction
+  # 1. Capture notes while studying
+  monoid new "Two Sum - use hashmap for O(n) lookup"
+  monoid new "3Sum - sort first, then two pointers"
+  monoid new "Maximum Subarray - Kadane's algorithm"
 
-Not code dumping or verbosity.
+  # 2. Auto-tag all notes
+  monoid autotag
 
-This is especially critical for:
+  # 3. Search by pattern
+  monoid search --tags two-pointers,array --all
 
-* DSA pattern notes
-* Study notes
-* Architectural summaries
+  # 4. Enhance a note with related context
+  monoid enhance 20250103142530 --with-context
 
----
+  # 5. Synthesize patterns across notes
+  monoid synth "array manipulation techniques"
 
-## 9. Retrieval & Intelligence
+  # 6. Visualize knowledge connections
+  monoid graph web
 
-### Search Modes
-
-* Keyword (FTS)
-* Tag-based
-* Semantic (optional)
-* Hybrid
-
-Semantic retrieval is designed to:
-
-* Surface intuition
-* Find patterns even when keywords differ
-
----
-
-### Cross-Note Intelligence
-
-The system supports:
-
-* Synthesis across multiple notes
-* Question answering grounded in user content
-* Study material generation
-
-All outputs are traceable back to original notes.
-
----
-
-## 10. Discoverability & UX
-
-The system assumes:
-
-* Users won’t read docs
-* Power features must surface naturally
-
-Mechanisms:
-
-* Contextual tips
-* Usage-based suggestions
-* Clear help namespaces
-
-AI acts as a **coach**, not an authority.
-
----
-
-## 11. Technical Architecture (High-Level)
-
-### Language
-
-* Python (for ecosystem maturity, ML support, and CLI velocity)
-
-### CLI Framework
-
-* Modern, type-aware CLI tooling
-* Auto-generated help
-* Clean command separation
-
-### Storage
-
-* Markdown files (truth)
-* SQLite (metadata, indexing)
-* No external services required
-
-### Graph Processing
-
-* In-process graph algorithms
-* Cached results
-* No dedicated graph database
-
-### AI Providers
-
-* Abstracted behind a provider interface
-* Replaceable
-* Optional
-
----
-
-## 12. Explicit Non-Goals
-
-This system intentionally does **not** include:
-
-* Encryption (delegate to disk-level security)
-* Sync or collaboration
-* Mobile or web UI
-* Plugin systems
-* Real-time features
-* Spaced repetition systems
-* Custom markdown dialects
-
-Each of these adds complexity without serving the core purpose.
-
----
-
-## 13. Architectural Guarantees
-
-This design guarantees:
-
-* **Durability** — Notes survive tools, languages, and models
-* **Reversibility** — AI output can always be removed
-* **Composability** — Works with Unix tools
-* **Scalability** — Handles thousands of notes without architectural change
-* **Cognitive alignment** — Optimized for thinking, not storage
-
----
-
-## 14. Final Assessment
-
-This system is not a “notes app”.
-
-It is a **personal knowledge substrate** designed to:
-
-* Capture raw thinking quickly
-* Distill abstractions over time
-* Preserve authorship
-* Make patterns visible
-* Let AI assist without taking control
-
-No additional architecture is required.
-Any further additions should be justified by **actual usage**, not anticipation.
-
-The design is complete.
+  ---

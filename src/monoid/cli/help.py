@@ -31,6 +31,7 @@ A CLI-first notes system for human thinking.
 - **`monoid help search`** - Search and discovery commands
 - **`monoid help ai`** - AI-powered features
 - **`monoid help graph`** - Knowledge graph operations
+- **`monoid help db`** - Database and sync operations
 
 ## Quick Start
 
@@ -351,3 +352,99 @@ Connections are created from:
 - Graph rebuilds automatically when needed
 """
     show_help_section("Knowledge Graph", help_text)
+
+
+@app.command()
+def db() -> None:
+    """Show help for database and sync commands."""
+    help_text = """
+# Database & Sync
+
+Commands for syncing notes with Supabase cloud storage.
+
+## Commands
+
+### `monoid db status`
+Show sync status and configuration.
+
+**Examples:**
+```bash
+monoid db status
+```
+
+Shows:
+- Supabase configuration status
+- Pending local changes
+- Notes since last sync
+- Last sync timestamp
+- Remote note/embedding counts
+
+### `monoid db sync`
+Sync notes with Supabase (bidirectional).
+
+**Options:**
+- `--force, -f` - Force full sync of all notes
+
+**Examples:**
+```bash
+# Normal sync (only pending changes)
+monoid db sync
+
+# Force full sync
+monoid db sync --force
+```
+
+### `monoid db migrate`
+Migrate all existing notes to Supabase (one-time operation).
+
+**Examples:**
+```bash
+monoid db migrate
+```
+
+Use this when setting up sync for the first time to upload all existing local notes.
+
+### `monoid db pull`
+Pull new notes from Supabase without pushing local changes.
+
+**Examples:**
+```bash
+monoid db pull
+```
+
+### `monoid db push`
+Push local changes to Supabase without pulling remote changes.
+
+**Examples:**
+```bash
+monoid db push
+```
+
+## Configuration
+
+Set these environment variables to enable sync:
+
+```bash
+export MONOID_SUPABASE_URL=https://xxx.supabase.co
+export MONOID_SUPABASE_KEY=your-anon-key
+```
+
+Optional settings:
+- `MONOID_SYNC_ENABLED` - Enable/disable sync (default: true if configured)
+- `MONOID_AUTO_SYNC_THRESHOLD` - Notes count to trigger auto-sync (default: 10)
+
+## Sync Behavior
+
+- **Bidirectional**: Changes flow both ways (local ↔ remote)
+- **Conflict resolution**: Latest timestamp wins
+- **Soft delete**: Deleted notes are marked, not removed
+- **Incremental**: Only changed notes are synced (unless --force)
+
+## Tips
+
+- Run `monoid db status` to check your sync configuration
+- Use `monoid db migrate` once when first setting up Supabase
+- Regular `monoid db sync` keeps everything in sync
+- Use `pull`/`push` for one-way sync when needed
+"""
+    show_help_section("Database & Sync", help_text)

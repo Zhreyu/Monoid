@@ -1,6 +1,7 @@
 """Supabase client wrapper with connection management."""
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional, cast
+from postgrest.types import CountMethod
 from supabase import create_client, Client
 from monoid.config import config
 from monoid.sync.models import SyncNote, SyncTag, SyncEmbedding
@@ -41,7 +42,7 @@ class SupabaseClient:
 
         result = self.client.table("notes").upsert(data).execute()
         if result.data:
-            return SyncNote(**result.data[0])
+            return SyncNote(**cast(dict[str, Any], result.data[0]))
         return note
 
     def upsert_notes_batch(self, notes: List[SyncNote]) -> int:
@@ -65,7 +66,7 @@ class SupabaseClient:
         """Get a single note by ID."""
         result = self.client.table("notes").select("*").eq("id", note_id).execute()
         if result.data:
-            return self._parse_note(result.data[0])
+            return self._parse_note(cast(dict[str, Any], result.data[0]))
         return None
 
     def get_notes_since(self, since: Optional[datetime], limit: int = 1000) -> List[SyncNote]:
@@ -75,12 +76,14 @@ class SupabaseClient:
             query = query.gte("updated_at", since.isoformat())
         query = query.order("updated_at").limit(limit)
         result = query.execute()
-        return [self._parse_note(row) for row in (result.data or [])]
+        rows = cast(list[dict[str, Any]], result.data or [])
+        return [self._parse_note(row) for row in rows]
 
     def get_all_notes(self) -> List[SyncNote]:
         """Get all notes (for migration verification)."""
         result = self.client.table("notes").select("*").is_("deleted_at", "null").execute()
-        return [self._parse_note(row) for row in (result.data or [])]
+        rows = cast(list[dict[str, Any]], result.data or [])
+        return [self._parse_note(row) for row in rows]
 
     def soft_delete_note(self, note_id: str) -> bool:
         """Soft delete a note by setting deleted_at."""
@@ -92,7 +95,7 @@ class SupabaseClient:
         )
         return bool(result.data)
 
-    def _parse_note(self, data: dict) -> SyncNote:
+    def _parse_note(self, data: dict[str, Any]) -> SyncNote:
         """Parse a database row into a SyncNote."""
         return SyncNote(
             id=data["id"],
@@ -132,6 +135,7 @@ class SupabaseClient:
     def get_tags_for_note(self, note_id: str) -> List[SyncTag]:
         """Get all tags for a note."""
         result = self.client.table("tags").select("*").eq("note_id", note_id).execute()
+        rows = cast(list[dict[str, Any]], result.data or [])
         return [
             SyncTag(
                 note_id=row["note_id"],
@@ -139,14 +143,14 @@ class SupabaseClient:
                 source=row.get("source", "user"),
                 confidence=row.get("confidence", 1.0),
             )
-            for row in (result.data or [])
+            for row in rows
         ]
 
     # ==================== Embedding Operations ====================
 
     def upsert_embedding(self, embedding: SyncEmbedding) -> bool:
         """Upsert a single embedding."""
-        data = {
+        data: dict[str, Any] = {
             "note_id": embedding.note_id,
             "model": embedding.model,
             "dimensions": embedding.dimensions,
@@ -160,7 +164,7 @@ class SupabaseClient:
         if not embeddings:
             return 0
 
-        data = [
+        data: list[dict[str, Any]] = [
             {
                 "note_id": e.note_id,
                 "model": e.model,
@@ -176,7 +180,7 @@ class SupabaseClient:
         """Get embedding for a note."""
         result = self.client.table("embeddings").select("*").eq("note_id", note_id).execute()
         if result.data:
-            row = result.data[0]
+            row = cast(dict[str, Any], result.data[0])
             return SyncEmbedding(
                 note_id=row["note_id"],
                 model=row["model"],
@@ -191,7 +195,7 @@ class SupabaseClient:
         """Get total count of non-deleted notes."""
         result = (
             self.client.table("notes")
-            .select("id", count="exact")
+            .select("id", count=CountMethod.exact)
             .is_("deleted_at", "null")
             .execute()
         )
@@ -199,7 +203,7 @@ class SupabaseClient:
 
     def get_embedding_count(self) -> int:
         """Get total count of embeddings."""
-        result = self.client.table("embeddings").select("note_id", count="exact").execute()
+        result = self.client.table("embeddings").select("note_id", count=CountMethod.exact).execute()
         return result.count or 0
 
 

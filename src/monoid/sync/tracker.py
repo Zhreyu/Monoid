@@ -76,7 +76,7 @@ class ChangeTracker:
         """)
         conn.commit()
 
-    def get_pending_changes(self) -> List[dict]:
+    def get_pending_changes(self) -> List[dict[str, str]]:
         """Get all pending changes."""
         conn = db.get_conn()
         cur = conn.cursor()

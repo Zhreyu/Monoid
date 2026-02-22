@@ -1,6 +1,6 @@
 """Core sync engine implementing bidirectional sync."""
 import json
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -157,12 +157,12 @@ class SyncEngine:
                     except Exception as e:
                         errors.append(f"Failed to delete {note_id}: {e}")
                 else:
-                    note = storage.get_note(note_id)
-                    if note:
+                    local_note = storage.get_note(note_id)
+                    if local_note:
                         try:
-                            sync_note = self._note_to_sync_note(note)
+                            sync_note = self._note_to_sync_note(local_note)
                             self.client.upsert_note(sync_note)
-                            self._sync_note_tags(note)
+                            self._sync_note_tags(local_note)
                             uploaded += 1
                         except Exception as e:
                             errors.append(f"Failed to upload {note_id}: {e}")
@@ -312,7 +312,7 @@ class SyncEngine:
         if path.exists():
             path.unlink()
 
-    def migrate_all(self, batch_size: int = 50) -> dict:
+    def migrate_all(self, batch_size: int = 50) -> dict[str, Any]:
         """
         Migrate all existing local data to Supabase.
 
@@ -321,7 +321,7 @@ class SyncEngine:
         Returns:
             Dictionary with migration statistics
         """
-        stats = {"notes": 0, "tags": 0, "embeddings": 0, "errors": []}
+        stats: dict[str, Any] = {"notes": 0, "tags": 0, "embeddings": 0, "errors": []}
 
         if not self.client.is_configured():
             stats["errors"].append("Supabase not configured")

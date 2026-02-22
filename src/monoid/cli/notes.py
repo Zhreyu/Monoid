@@ -15,6 +15,35 @@ from monoid.config import config
 app = typer.Typer()
 console = Console()
 
+
+def _trigger_sync_if_needed(note_id: str) -> None:
+    """Track note change and trigger auto-sync if threshold reached."""
+    if not config.sync_enabled:
+        return
+
+    try:
+        from monoid.sync.tracker import tracker
+
+        # Mark this note as changed
+        tracker.mark_changed(note_id, "upsert")
+
+        # Check if auto-sync should trigger
+        if tracker.should_auto_sync(config.auto_sync_threshold):
+            import threading
+            from monoid.sync.engine import sync_engine
+
+            # Run sync silently in background
+            def background_sync() -> None:
+                try:
+                    sync_engine.sync(force_full=False, silent=True)
+                except Exception:
+                    pass  # Silently ignore errors in background sync
+
+            thread = threading.Thread(target=background_sync, daemon=True)
+            thread.start()
+    except Exception:
+        pass  # Don't let sync errors break the main flow
+
 @app.command()
 def new(
     content: Optional[str] = typer.Argument(None, help="Note content."),
@@ -53,8 +82,9 @@ def new(
 
     note = storage.create_note(content=content, title=title, tags=list(tags) if tags else None, type=note_type)
     console.print(f"[green]Created note:[/green] {note.metadata.id} ({note.path})")
-    
+
     indexer.sync_all()
+    _trigger_sync_if_needed(note.metadata.id)
 
 def format_tags_with_confidence(tags: List[NoteTag], show_all: bool = False, threshold: float = 0.7) -> str:
     """Format tags with confidence indicators."""
@@ -151,5 +181,6 @@ def edit(note_id: str) -> None:
 
     editor = os.getenv("EDITOR", "nano")
     subprocess.call([editor, str(note.path)])
-    
+
     indexer.sync_all()
+    _trigger_sync_if_needed(note.metadata.id)

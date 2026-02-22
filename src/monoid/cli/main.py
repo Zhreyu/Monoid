@@ -1,7 +1,7 @@
 import typer
 from typing import Any
 from rich.console import Console
-from monoid.cli import notes, search, ai, graph, templates
+from monoid.cli import notes, search, ai, graph, templates, db
 from monoid.cli import help as help_module
 
 app = typer.Typer(
@@ -111,6 +111,7 @@ app.command(name="enhance")(ai.enhance)
 
 app.add_typer(graph.app, name="graph", help="Knowledge graph operations")
 app.add_typer(templates.app, name="template", help="Template-based AI generation")
+app.add_typer(db.app, name="db", help="Database and sync operations")
 
 
 @app.callback()

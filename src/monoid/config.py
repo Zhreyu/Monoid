@@ -7,6 +7,12 @@ class Config(BaseModel):
     openai_key: str | None = None
     tag_confidence_threshold: float = 0.7
 
+    # Supabase sync configuration
+    supabase_url: str | None = None
+    supabase_key: str | None = None
+    sync_enabled: bool = False
+    auto_sync_threshold: int = 10
+
     @staticmethod
     def get_default_notes_dir() -> Path:
         return Path.home() / "monoid-notes"
@@ -23,7 +29,22 @@ class Config(BaseModel):
         tag_threshold_env = os.getenv("MONOID_TAG_CONFIDENCE_THRESHOLD")
         tag_confidence_threshold = float(tag_threshold_env) if tag_threshold_env else 0.7
 
-        return cls(notes_dir=notes_dir, openai_key=openai_key, tag_confidence_threshold=tag_confidence_threshold)
+        # Load Supabase configuration
+        supabase_url = os.getenv("MONOID_SUPABASE_URL")
+        supabase_key = os.getenv("MONOID_SUPABASE_KEY")
+        sync_enabled = os.getenv("MONOID_SYNC_ENABLED", "").lower() == "true"
+        auto_sync_threshold_env = os.getenv("MONOID_AUTO_SYNC_THRESHOLD")
+        auto_sync_threshold = int(auto_sync_threshold_env) if auto_sync_threshold_env else 10
+
+        return cls(
+            notes_dir=notes_dir,
+            openai_key=openai_key,
+            tag_confidence_threshold=tag_confidence_threshold,
+            supabase_url=supabase_url,
+            supabase_key=supabase_key,
+            sync_enabled=sync_enabled,
+            auto_sync_threshold=auto_sync_threshold,
+        )
 
     def ensure_dirs(self) -> None:
         self.notes_dir.mkdir(parents=True, exist_ok=True)
